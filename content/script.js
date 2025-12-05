@@ -21,6 +21,7 @@ const SELECTOR_STYLES = `
     min-width: 200px;
     max-width: 300px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    text-align: left;
     overflow: hidden;
     animation: pmFadeIn 0.1s ease-out;
   }
@@ -293,7 +294,7 @@ function injectIcon(targetInput, relatedUser, relatedPass) {
   wrapper.appendChild(icon);
 }
 
-// Função Nova: Cria o menu de seleção
+// Função Nova: Cria o menu de seleção com POSICIONAMENTO CORRIGIDO
 function showCredentialSelector(icon, credentials, userField, passField) {
   // Remove seletor anterior se existir
   const existing = document.querySelector('.pm-selector-menu');
@@ -302,17 +303,7 @@ function showCredentialSelector(icon, credentials, userField, passField) {
   const menu = document.createElement('div');
   menu.className = 'pm-selector-menu';
 
-  // Posicionamento
-  const rect = icon.getBoundingClientRect();
-  const scrollY = window.scrollY || window.pageYOffset;
-  const scrollX = window.scrollX || window.pageXOffset;
-  
-  // Posiciona logo abaixo do ícone, alinhado à direita do ícone
-  menu.style.top = `${rect.bottom + scrollY + 5}px`;
-  // Tenta alinhar à direita, mas se sair da tela, ajusta
-  // Como o ícone está dentro de um input, alinhar à esquerda do ícone - 200px (largura min)
-  menu.style.left = `${rect.left + scrollX - 180}px`; 
-
+  // Popula o menu
   credentials.forEach(cred => {
     const item = document.createElement('div');
     item.className = 'pm-selector-item';
@@ -330,7 +321,33 @@ function showCredentialSelector(icon, credentials, userField, passField) {
     menu.appendChild(item);
   });
 
+  // 1. Adiciona ao body primeiro para calcular dimensões
   document.body.appendChild(menu);
+
+  // 2. Cálculos de Posicionamento Robusto
+  const rect = icon.getBoundingClientRect();
+  const scrollY = window.scrollY || window.pageYOffset;
+  const scrollX = window.scrollX || window.pageXOffset;
+  
+  const menuWidth = menu.offsetWidth;
+  const windowWidth = window.innerWidth;
+
+  // Tenta alinhar a borda direita do menu com a borda direita do ícone (rect.right)
+  let leftPos = (rect.right + scrollX) - menuWidth;
+
+  // Se o menu sair pela esquerda (left negativo), alinha com a esquerda do ícone
+  if (leftPos < 10) {
+    leftPos = rect.left + scrollX;
+  }
+  
+  // Se ainda assim sair pela direita da tela, ajusta para caber
+  if (leftPos + menuWidth > windowWidth + scrollX) {
+      leftPos = (windowWidth + scrollX) - menuWidth - 10;
+  }
+
+  // Aplica as coordenadas
+  menu.style.top = `${rect.bottom + scrollY + 5}px`;
+  menu.style.left = `${leftPos}px`;
 
   // Fecha ao clicar fora
   setTimeout(() => {
@@ -361,7 +378,8 @@ function fillFields(userInput, passInput, data) {
 }
 
 function dispatchEvents(element) {
-  const events = ['click', 'focus', 'input', 'change', 'blur'];
+  // Simplificado para evitar conflitos de UI, mantendo funcionalidade
+  const events = ['input', 'change']; 
   events.forEach(evtType => {
     const event = new Event(evtType, { bubbles: true, cancelable: true });
     element.dispatchEvent(event);

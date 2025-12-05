@@ -173,6 +173,18 @@ async function initApp() {
   }
 }
 
+// --- Validação Global de Bloqueio ---
+// Captura erros de promessas (async) não tratados, como ao tentar salvar com cofre fechado
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message === 'LOCKED') {
+    console.warn('Cofre bloqueado detectado. Redirecionando para login...');
+    event.preventDefault(); // Evita erro no console
+    securityModule.showLockScreen();
+    // Esconde todas as views principais para forçar o foco no login
+    Object.values(views).forEach((view) => view.classList.add('hidden'));
+  }
+});
+
 // --- CSV Import/Export ---
 function setupCsvImportExport() {
   const exportBtn = document.getElementById('btn-export-csv');

@@ -176,7 +176,8 @@ export function createSecurityModule(options) {
 
     if (timeLeftMs <= 0) {
       setText(timerDisplay, 'Bloqueando agora...');
-      // O checkAutoLock() que roda no `checkInterval` cuidará do bloqueio real.
+      // Bug corrigido: Força a verificação de bloqueio IMEDIATAMENTE quando o tempo acaba
+      await checkAutoLock(); 
       return;
     }
 

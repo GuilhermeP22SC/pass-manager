@@ -19,6 +19,9 @@ export const VaultService = {
     try {
       return await decryptData(stored);
     } catch (error) {
+      // CORREÇÃO: Propaga o erro se estiver bloqueado para forçar o login
+      if (error.message === 'LOCKED') throw error;
+      
       console.error('VaultService: erro ao ler dados.', error);
       return [];
     }
@@ -42,4 +45,3 @@ export async function savePausedSites(sites) {
 export function getAutofillStorageKey() {
   return AUTOFILL_KEY;
 }
-
