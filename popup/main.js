@@ -77,7 +77,44 @@ const vaultModule = createVaultModule({
   passwordIcon: document.getElementById('icon-eye'),
   // Passando os novos elementos para o módulo Vault
   strengthFill: document.getElementById('entry-strength-fill'),
+  strengthText: document.getElementById('entry-strength-text'),
+  
+  //NOVO: Passar os botões de filtro
+  filterButtons: document.querySelectorAll('.filter-pill'),
+  // --- ATUALIZAÇÃO DOS INPUTS ---
+  inputs: {
+    type: document.getElementById('entry-type'),
+    name: document.getElementById('entry-name'), // Antigo 'site'
+    
+    // Login
+    username: document.getElementById('entry-username'),
+    password: document.getElementById('entry-password'),
+    url: document.getElementById('entry-url'),
+
+    // Cartão
+    cardHolder: document.getElementById('entry-cardholder'),
+    cardNumber: document.getElementById('entry-cardnumber'),
+    expiry: document.getElementById('entry-expiry'),
+    cvv: document.getElementById('entry-cvv'),
+    pin: document.getElementById('entry-pin'),
+
+    // Nota
+    noteContent: document.getElementById('entry-note-content'),
+    
+    // Labels Dinâmicos
+    labelName: document.getElementById('lbl-entry-name')
+  },
+  groups: {
+    login: document.getElementById('group-login'),
+    card: document.getElementById('group-card'),
+    note: document.getElementById('group-note')
+  },
+
+  passwordToggleButton: document.getElementById('btn-toggle-pass'),
+  passwordIcon: document.getElementById('icon-eye'),
+  strengthFill: document.getElementById('entry-strength-fill'),
   strengthText: document.getElementById('entry-strength-text')
+  
 });
 
 const autofillModule = createAutofillModule({

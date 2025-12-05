@@ -775,3 +775,66 @@ input:checked + .slider:before {
 .btn-danger-block:hover {
   background: #c53030;
 }
+.type-group.hidden {
+  display: none !important;
+}
+
+textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--text-main);
+  padding: 10px;
+  resize: vertical;
+}
+
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* --- BARRA DE FILTRO (NOVO) --- */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
+.filter-bar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.filter-pill {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.filter-pill:hover {
+  background: var(--bg-app);
+  color: var(--text-main);
+  border-color: var(--card-hover-border);
+}
+
+.filter-pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Ajuste no list-header-row para espaçamento */
+.list-header-row {
+  margin-bottom: 8px; 
+}

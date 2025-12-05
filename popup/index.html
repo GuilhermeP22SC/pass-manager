@@ -33,17 +33,18 @@
       </div>
       <div class="scroll-area">
         <div>
-          <div class="section-label">SUGERIDO</div>
+          <div class="section-label">ACESSO RÁPIDO</div>
           <div class="card add-card" id="btn-add-hero">
-            <div class="item-icon-box placeholder"><img src="../assets/internet.svg" alt="Internet" style="width:20px;height:20px;"></div>
+            <div class="item-icon-box placeholder"><img src="../assets/internet.svg" alt="+" style="width:20px;height:20px;"></div>
             <div class="add-text">
-              <span class="add-title">Adicionar novo login</span>
-              <span class="add-subtitle">Nenhum login salvo para este site.</span>
+              <span class="add-title">Novo Item</span>
+              <span class="add-subtitle">Adicionar login, cartão ou nota.</span>
             </div>
             <button class="btn-plus">+</button>
           </div>
+          
           <div class="list-header-row">
-            <span class="sort-label">Nome do item ⌄</span>
+            <span class="sort-label">Meus Itens ⌄</span>
             <span class="count-label" id="item-count">0 itens</span>
             <div class="list-actions-group">
               <button id="btn-export-csv" class="csv-action-btn" title="Exportar CSV">Exportar</button>
@@ -51,7 +52,15 @@
               <input type="file" id="import-csv-input" accept=".csv" class="csv-file-input">
             </div>
           </div>
-          <div id="empty-state" class="empty-state hidden">Nenhuma conta encontrada.</div>
+
+          <div class="filter-bar">
+            <button class="filter-pill active" data-type="all">Todos</button>
+            <button class="filter-pill" data-type="login">Logins</button>
+            <button class="filter-pill" data-type="card">Cartões</button>
+            <button class="filter-pill" data-type="note">Notas</button>
+          </div>
+          
+          <div id="empty-state" class="empty-state hidden">Nenhum item encontrado.</div>
           <ul id="password-list" class="vault-list"></ul>
           
           <template id="tpl-vault-item">
@@ -60,10 +69,10 @@
               <div class="item-info">
                 <span class="item-name"></span>
                 <span class="item-sub"></span>
-                <span class="security-badge">CRIPTOGRAFADA</span>
+                <span class="security-badge">CRIPTOGRAFADO</span>
               </div>
               <div class="item-actions">
-                <button class="btn-icon-action copy-btn" title="Copiar">
+                <button class="btn-icon-action copy-btn" title="Copiar principal">
                   <img src="../assets/copy.svg" alt="Copiar" style="width:18px;height:18px;vertical-align:middle;">
                 </button>
                 <button class="btn-icon-action launch-btn" title="Abrir">
@@ -75,7 +84,7 @@
         </div>
       </div>
     </main>
-
+    
     <div id="view-autofill" class="content-view hidden">
       <div class="scroll-area">
         <div class="card autofill-card">
@@ -89,7 +98,6 @@
             </label>
           </div>
         </div>
-
         <div class="card autofill-card">
           <h3>Controles de Site</h3>
           <p class="card-desc">Escolha como este site deve se comportar.</p>
@@ -170,33 +178,83 @@
     </div>
 
     <div id="view-edit" class="overlay hidden">
-      <div class="overlay-header">
+        <div class="overlay-header">
         <button class="btn-close" data-target="main">✕</button>
-        <h3>Detalhes do Login</h3>
+        <h3>Detalhes do Item</h3>
         <button class="btn-save-text" id="btn-save-form" type="button">Salvar</button>
       </div>
+      
       <form id="form-entry" class="overlay-content">
         <div class="form-group">
-          <label>Website</label>
-          <input type="text" id="entry-site" placeholder="exemplo.com" required>
+          <label>Tipo de Item</label>
+          <select id="entry-type" style="width:100%; padding:10px; border-radius:6px; border:1px solid var(--input-border); background:var(--bg-input); color:var(--text-main);">
+            <option value="login">Login</option>
+            <option value="card">Cartão de Crédito</option>
+            <option value="note">Nota Segura</option>
+          </select>
         </div>
+
         <div class="form-group">
-          <label>Email / Usuário</label>
-          <input type="text" id="entry-username" placeholder="nome@email.com" required>
+          <label id="lbl-entry-name">Nome / Site</label>
+          <input type="text" id="entry-name" placeholder="Ex: Google, Nubank..." required>
         </div>
-        <div class="form-group">
-          <label>Senha</label>
-          <div class="pass-wrapper">
-            <input type="password" id="entry-password" required>
-            <button type="button" id="btn-toggle-pass"><img id="icon-eye" src="../assets/eye-closed.svg" style="width:20px;"></button>
+
+        <div id="group-login" class="type-group">
+           <div class="form-group">
+            <label>Usuário / Email</label>
+            <input type="text" id="entry-username" placeholder="nome@email.com">
           </div>
-          <div class="strength-container">
-            <div class="strength-bar-bg">
-              <div id="entry-strength-fill" class="strength-bar-fill"></div>
+          <div class="form-group">
+            <label>Senha</label>
+            <div class="pass-wrapper">
+              <input type="password" id="entry-password">
+              <button type="button" id="btn-toggle-pass"><img id="icon-eye" src="../assets/eye-closed.svg" style="width:20px;"></button>
             </div>
-            <div id="entry-strength-text" class="strength-text"></div>
+            <div class="strength-container">
+              <div class="strength-bar-bg">
+                <div id="entry-strength-fill" class="strength-bar-fill"></div>
+              </div>
+              <div id="entry-strength-text" class="strength-text"></div>
+            </div>
+          </div>
+           <div class="form-group">
+            <label>URL de Login (Opcional)</label>
+            <input type="text" id="entry-url" placeholder="https://site.com/login">
           </div>
         </div>
+
+        <div id="group-card" class="type-group hidden">
+          <div class="form-group">
+            <label>Nome no Cartão</label>
+            <input type="text" id="entry-cardholder" placeholder="NOME COMO NO CARTAO">
+          </div>
+          <div class="form-group">
+            <label>Número do Cartão</label>
+            <input type="text" id="entry-cardnumber" placeholder="0000 0000 0000 0000">
+          </div>
+          <div style="display:flex; gap:10px;">
+            <div class="form-group" style="flex:1">
+              <label>Validade</label>
+              <input type="text" id="entry-expiry" placeholder="MM/AA">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>CVV</label>
+              <input type="password" id="entry-cvv" placeholder="123">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>PIN (Opcional)</label>
+            <input type="password" id="entry-pin" placeholder="****">
+          </div>
+        </div>
+
+        <div id="group-note" class="type-group hidden">
+          <div class="form-group">
+            <label>Conteúdo da Nota</label>
+            <textarea id="entry-note-content" rows="8" placeholder="Escreva suas informações seguras aqui..."></textarea>
+          </div>
+        </div>
+
         <div class="form-actions-bottom">
           <button type="button" id="btn-delete" class="btn-text-danger hidden">Excluir item</button>
         </div>
@@ -205,8 +263,8 @@
 
   </div>
   <script type="module" src="main.js"></script>
-
-  <div id="lock-screen" class="overlay hidden" style="z-index: 9999; background: var(--bg-app);">
+    
+    <div id="lock-screen" class="overlay hidden" style="z-index: 9999; background: var(--bg-app);">
     <div class="overlay-content centered lock-container">
       <img src="../icons/logo.png" class="lock-logo">
       <div id="lock-content">
