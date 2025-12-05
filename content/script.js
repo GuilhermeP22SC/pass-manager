@@ -3,15 +3,47 @@
 const AUTOFILL_STORAGE_KEY = 'autofillPausedSites';
 const PM_ICON_URL = chrome.runtime.getURL('icons/logo.png');
 
-// Configuração de Debounce para o Observer
 let scannerTimeout = null;
 const SCAN_DEBOUNCE_MS = 500;
 
-// Regex para Heurística
 const USERNAME_REGEX = /user|name|login|mail|id|conta|usuario|utilizador/i;
 const SUBMIT_REGEX = /login|sign|entrar|acessar|logon|submit/i;
 
-// --- INICIALIZAÇÃO ---
+// CSS para o seletor de contas
+const SELECTOR_STYLES = `
+  .pm-selector-menu {
+    position: absolute;
+    z-index: 2147483647; /* Máximo z-index */
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    min-width: 200px;
+    max-width: 300px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    animation: pmFadeIn 0.1s ease-out;
+  }
+  .pm-selector-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+    display: flex;
+    flex-direction: column;
+  }
+  .pm-selector-item:last-child { border-bottom: none; }
+  .pm-selector-item:hover { background-color: #f9fafb; }
+  .pm-sel-user { font-weight: 600; font-size: 13px; color: #111827; }
+  .pm-sel-site { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  @keyframes pmFadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+`;
+
+// Injeta os estilos uma única vez
+const styleEl = document.createElement('style');
+styleEl.textContent = SELECTOR_STYLES;
+document.head.appendChild(styleEl);
+
 (async () => {
   const hostname = window.location.hostname;
   
@@ -41,41 +73,32 @@ const SUBMIT_REGEX = /login|sign|entrar|acessar|logon|submit/i;
 async function runEnterpriseScan() {
   const allInputs = deepQuerySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
   
-  // Identifica campos de senha
   const passwordInputs = allInputs.filter(el => el.type === 'password' || el.name?.toLowerCase().includes('password'));
 
   if (passwordInputs.length === 0) return;
 
   for (const passInput of passwordInputs) {
-    // Se o par já foi processado completamente, pula.
-    // Mas verificamos individualmente a injeção de ícones abaixo.
     if (passInput.dataset.pmProcessed) continue;
 
-    // Encontra o campo de utilizador associado
     const userInput = findRelatedUsernameField(passInput, allInputs);
 
-    // Marca o par como "conhecido" para evitar re-análise de relacionamento
     passInput.dataset.pmProcessed = 'true';
     if (userInput) userInput.dataset.pmProcessed = 'true';
 
-    // --- MUDANÇA: Injeta ícones em AMBOS os campos ---
-    
-    // 1. Injeta no campo de Senha
     injectIcon(passInput, userInput, passInput);
 
-    // 2. Injeta no campo de Usuário (se existir)
     if (userInput) {
       injectIcon(userInput, userInput, passInput);
     }
 
-    // Configura Listeners de Captura (Enter e Submit)
     attachTrafficListeners(passInput, userInput);
     
     // Tenta Autofill inicial (apenas uma vez para o par)
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
-      if (response) {
-        fillFields(userInput, passInput, response);
+      const matches = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
+      // Se houver matches, preenche o primeiro automaticamente ao carregar
+      if (matches && matches.length > 0) {
+        fillFields(userInput, passInput, matches[0]);
       }
     } catch (e) {}
   }
@@ -83,8 +106,7 @@ async function runEnterpriseScan() {
   checkPendingCredentials();
 }
 
-// --- TRAVERSAL & HEURÍSTICA ---
-
+// --- TRAVERSAL & HEURÍSTICA (Inalterado) ---
 function deepQuerySelectorAll(selector, root = document) {
   let results = Array.from(root.querySelectorAll(selector));
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
@@ -100,44 +122,34 @@ function deepQuerySelectorAll(selector, root = document) {
 function findRelatedUsernameField(passInput, allInputs) {
   const index = allInputs.indexOf(passInput);
   if (index <= 0) return null;
-
   const candidates = allInputs.slice(Math.max(0, index - 3), index).reverse();
-
   let bestCandidate = null;
   let maxScore = -1;
 
   for (const input of candidates) {
     if (input.type === 'password') continue;
     if (!isVisible(input)) continue;
-
     const score = calculateUsernameScore(input);
     if (score > maxScore) {
       maxScore = score;
       bestCandidate = input;
     }
   }
-
   if (!bestCandidate && candidates.length > 0) {
     const immediate = candidates[0];
-    if (immediate.type === 'text' || immediate.type === 'email') {
-      return immediate;
-    }
+    if (immediate.type === 'text' || immediate.type === 'email') return immediate;
   }
-
   return bestCandidate;
 }
 
 function calculateUsernameScore(input) {
   let score = 0;
   const attrString = `${input.name} ${input.id} ${input.placeholder} ${input.getAttribute('aria-label')}`.toLowerCase();
-
   if (input.autocomplete === 'username' || input.autocomplete === 'email') score += 20;
   if (input.type === 'email') score += 10;
   if (USERNAME_REGEX.test(attrString)) score += 5;
-  
   if (input.type === 'search') score -= 10;
   if (input.type === 'date') score -= 20;
-
   return score;
 }
 
@@ -146,36 +158,25 @@ function isVisible(el) {
   return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
 }
 
-// --- LISTENERS E CAPTURA ---
-
+// --- LISTENERS E CAPTURA (Inalterado) ---
 function attachTrafficListeners(passInput, userInput) {
   const inputs = [passInput, userInput].filter(Boolean);
-  
   inputs.forEach(input => {
-    // Evita duplicar listeners se a função for chamada novamente
     if (input.dataset.pmListenerAttached) return;
     input.dataset.pmListenerAttached = 'true';
-
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        handleCredentialCapture(userInput, passInput);
-      }
+      if (e.key === 'Enter') handleCredentialCapture(userInput, passInput);
     }, true);
   });
-
   const submitBtn = findSubmitButton(passInput);
   if (submitBtn && !submitBtn.dataset.pmListenerAttached) {
     submitBtn.dataset.pmListenerAttached = 'true';
-    submitBtn.addEventListener('click', () => {
-      handleCredentialCapture(userInput, passInput);
-    }, true);
+    submitBtn.addEventListener('click', () => handleCredentialCapture(userInput, passInput), true);
   } else {
     const parentForm = passInput.closest('form');
     if (parentForm && !parentForm.dataset.pmListenerAttached) {
       parentForm.dataset.pmListenerAttached = 'true';
-      parentForm.addEventListener('submit', () => {
-        handleCredentialCapture(userInput, passInput);
-      }, true);
+      parentForm.addEventListener('submit', () => handleCredentialCapture(userInput, passInput), true);
     }
   }
 }
@@ -186,15 +187,12 @@ function findSubmitButton(passInput) {
     const btn = form.querySelector('button[type="submit"], input[type="submit"]');
     if (btn) return btn;
   }
-
   let parent = passInput.parentElement;
   for (let i = 0; i < 3; i++) {
     if (!parent) break;
     const buttons = parent.querySelectorAll('button, div[role="button"], input[type="button"]');
     for (const btn of buttons) {
-      if (SUBMIT_REGEX.test(btn.innerText || btn.value || btn.id)) {
-        return btn;
-      }
+      if (SUBMIT_REGEX.test(btn.innerText || btn.value || btn.id)) return btn;
     }
     parent = parent.parentElement;
   }
@@ -204,21 +202,17 @@ function findSubmitButton(passInput) {
 async function handleCredentialCapture(userInput, passInput) {
   const uVal = userInput ? userInput.value : '';
   const pVal = passInput.value;
-
   if (!pVal || (userInput && !uVal)) return; 
-
   let finalUser = uVal;
   if (!finalUser && userInput) {
       await new Promise(r => setTimeout(r, 100));
       finalUser = userInput.value;
   }
-
   const exists = await chrome.runtime.sendMessage({ 
     type: 'CHECK_CREDENTIALS_EXIST', 
     url: window.location.href, 
     username: finalUser 
   });
-
   if (!exists) {
     chrome.runtime.sendMessage({
       type: 'CACHE_TEMP_CREDENTIALS',
@@ -229,25 +223,14 @@ async function handleCredentialCapture(userInput, passInput) {
   }
 }
 
-// --- UI INJECTION (ATUALIZADO) ---
+// --- UI INJECTION E SELEÇÃO ---
 
-/**
- * Injeta o ícone em um campo alvo (targetInput).
- * @param {HTMLInputElement} targetInput - O campo onde o ícone será desenhado (pode ser User ou Pass)
- * @param {HTMLInputElement} relatedUser - Referência para o campo de usuário (para preencher)
- * @param {HTMLInputElement} relatedPass - Referência para o campo de senha (para preencher)
- */
 function injectIcon(targetInput, relatedUser, relatedPass) {
-  // Verifica se ESTE campo específico já tem ícone
   if (targetInput.dataset.pmIconAttached === 'true') return;
-  
-  // Verifica se o elemento ainda está conectado ao DOM
   if (!targetInput.parentElement) return;
 
-  // Criação do Wrapper
   const wrapper = document.createElement('div');
   wrapper.className = 'pm-icon-wrapper';
-  
   const computed = window.getComputedStyle(targetInput);
   wrapper.style.cssText = `
     position: relative;
@@ -260,15 +243,11 @@ function injectIcon(targetInput, relatedUser, relatedPass) {
     vertical-align: ${computed.verticalAlign};
   `;
 
-  // Insere o wrapper e move o input para dentro
   targetInput.parentElement.insertBefore(wrapper, targetInput);
   wrapper.appendChild(targetInput);
-  
-  // Marca como processado
   targetInput.dataset.pmIconAttached = 'true';
   targetInput.focus(); 
 
-  // Criação do Ícone
   const icon = document.createElement('img');
   icon.src = PM_ICON_URL;
   icon.style.cssText = `
@@ -288,26 +267,86 @@ function injectIcon(targetInput, relatedUser, relatedPass) {
   icon.onmouseover = () => icon.style.opacity = '1';
   icon.onmouseout = () => icon.style.opacity = '0.5';
 
-  // Evento de Clique no Ícone
   icon.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Efeito visual de clique
+    // Animação de clique
     icon.style.transform = 'translateY(-50%) scale(0.9)';
     setTimeout(() => icon.style.transform = 'translateY(-50%) scale(1)', 150);
 
-    const response = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
+    const matches = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
     
-    if (response) {
-      // Preenche AMBOS os campos, independentemente de qual ícone foi clicado
-      fillFields(relatedUser, relatedPass, response);
+    if (matches && matches.length > 0) {
+      if (matches.length === 1) {
+        // Apenas um? Preenche direto.
+        fillFields(relatedUser, relatedPass, matches[0]);
+      } else {
+        // Vários? Mostra seletor.
+        showCredentialSelector(icon, matches, relatedUser, relatedPass);
+      }
     } else {
       shakeElement(icon);
     }
   });
 
   wrapper.appendChild(icon);
+}
+
+// Função Nova: Cria o menu de seleção
+function showCredentialSelector(icon, credentials, userField, passField) {
+  // Remove seletor anterior se existir
+  const existing = document.querySelector('.pm-selector-menu');
+  if (existing) existing.remove();
+
+  const menu = document.createElement('div');
+  menu.className = 'pm-selector-menu';
+
+  // Posicionamento
+  const rect = icon.getBoundingClientRect();
+  const scrollY = window.scrollY || window.pageYOffset;
+  const scrollX = window.scrollX || window.pageXOffset;
+  
+  // Posiciona logo abaixo do ícone, alinhado à direita do ícone
+  menu.style.top = `${rect.bottom + scrollY + 5}px`;
+  // Tenta alinhar à direita, mas se sair da tela, ajusta
+  // Como o ícone está dentro de um input, alinhar à esquerda do ícone - 200px (largura min)
+  menu.style.left = `${rect.left + scrollX - 180}px`; 
+
+  credentials.forEach(cred => {
+    const item = document.createElement('div');
+    item.className = 'pm-selector-item';
+    item.innerHTML = `
+      <span class="pm-sel-user">${escapeHtml(cred.username)}</span>
+      <span class="pm-sel-site">${escapeHtml(cred.site)}</span>
+    `;
+    
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fillFields(userField, passField, cred);
+      menu.remove();
+    });
+    
+    menu.appendChild(item);
+  });
+
+  document.body.appendChild(menu);
+
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    const closeHandler = (e) => {
+      if (!menu.contains(e.target) && e.target !== icon) {
+        menu.remove();
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    document.addEventListener('click', closeHandler);
+  }, 50);
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 function fillFields(userInput, passInput, data) {
@@ -337,8 +376,7 @@ function shakeElement(el) {
     setTimeout(() => el.style.transform = originalTransform, 300);
 }
 
-// --- PENDÊNCIAS E UI ---
-
+// --- PENDÊNCIAS E UI (Inalterado) ---
 async function checkPendingCredentials() {
   try {
     const pending = await chrome.runtime.sendMessage({ type: 'CHECK_PENDING_TO_SAVE', url: window.location.href });
@@ -427,12 +465,10 @@ function showSavePrompt(username, password) {
       host.style.opacity = '0';
       setTimeout(() => host.remove(), 300);
   }
-  
   setTimeout(() => { if (document.body.contains(host)) closePrompt(); }, 15000);
 }
 
-// --- UTILITÁRIOS ---
-
+// --- UTILITÁRIOS (Inalterado) ---
 async function isAutofillPaused(domain) {
   try {
     const data = await chrome.storage.local.get([AUTOFILL_STORAGE_KEY]);

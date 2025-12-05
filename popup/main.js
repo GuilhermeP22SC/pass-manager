@@ -15,6 +15,34 @@ const navButtons = {
   generator: document.getElementById('nav-gen')
 };
 
+// --- Configuração do Tema (Dark Mode) ---
+const themeToggle = document.getElementById('toggle-dark-mode');
+const THEME_KEY = 'user_theme_preference';
+
+// 1. Aplica tema salvo ao iniciar
+chrome.storage.local.get([THEME_KEY]).then((result) => {
+  const isDark = result[THEME_KEY] === 'dark';
+  applyTheme(isDark);
+  if (themeToggle) themeToggle.checked = isDark;
+});
+
+// 2. Listener para o Toggle
+if (themeToggle) {
+  themeToggle.addEventListener('change', (e) => {
+    const isDark = e.target.checked;
+    applyTheme(isDark);
+    chrome.storage.local.set({ [THEME_KEY]: isDark ? 'dark' : 'light' });
+  });
+}
+
+function applyTheme(isDark) {
+  if (isDark) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+}
+
 // --- Inicialização dos Módulos ---
 
 const generatorModule = initGeneratorModule({
@@ -46,7 +74,10 @@ const vaultModule = createVaultModule({
     password: document.getElementById('entry-password')
   },
   passwordToggleButton: document.getElementById('btn-toggle-pass'),
-  passwordIcon: document.getElementById('icon-eye')
+  passwordIcon: document.getElementById('icon-eye'),
+  // Passando os novos elementos para o módulo Vault
+  strengthFill: document.getElementById('entry-strength-fill'),
+  strengthText: document.getElementById('entry-strength-text')
 });
 
 const autofillModule = createAutofillModule({
@@ -56,7 +87,7 @@ const autofillModule = createAutofillModule({
   autofillToggleButton: document.getElementById('btn-toggle-autofill')
 });
 
-// --- Módulo de Segurança (Com Mapeamento de Email/Código) ---
+// --- Módulo de Segurança ---
 const securityModule = createSecurityModule({
   lockScreen: document.getElementById('lock-screen'),
   lockContent: document.getElementById('lock-content'),
@@ -68,7 +99,7 @@ const securityModule = createSecurityModule({
 
   // Login
   unlockInput: document.getElementById('unlock-pass'),
-  unlockEmailInput: document.getElementById('unlock-email'), // NOVO CAMPO
+  unlockEmailInput: document.getElementById('unlock-email'),
   btnUnlock: document.getElementById('btn-unlock'),
   lockErrorMsg: document.getElementById('lock-error'),
   btnShowSetup: document.getElementById('btn-show-setup'),
@@ -131,12 +162,10 @@ async function initApp() {
 
   } catch (error) {
     if (error.message === 'LOCKED') {
-      // Se deu erro de cofre bloqueado (timer expirado), mostra a tela de login
       securityModule.showLockScreen();
       Object.values(views).forEach((view) => view.classList.add('hidden'));
     } else {
       console.error('Erro ao iniciar módulo do cofre:', error);
-      // Erro genérico (se não for LOCK), tenta mostrar a main view.
       if (document.getElementById('lock-screen').classList.contains('hidden')) {
         switchMainView('main');
       }
@@ -152,9 +181,7 @@ function setupCsvImportExport() {
 
   if (exportBtn) {
     exportBtn.addEventListener('click', async () => {
-      // Bloqueia se o cofre estiver bloqueado
       if (!document.getElementById('lock-screen').classList.contains('hidden')) return;
-
       if (vaultModule && vaultModule.exportToCsv) {
         await vaultModule.exportToCsv();
       }
@@ -163,7 +190,6 @@ function setupCsvImportExport() {
 
   if (importBtn && importInput) {
     importBtn.addEventListener('click', () => {
-      // Bloqueia se o cofre estiver bloqueado
       if (!document.getElementById('lock-screen').classList.contains('hidden')) return;
       importInput.click();
     });

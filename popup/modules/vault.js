@@ -25,7 +25,10 @@ export function createVaultModule(options) {
     closeButtons,
     inputs,
     passwordToggleButton,
-    passwordIcon
+    passwordIcon,
+    // Novos Elementos para a Barra de Força
+    strengthFill,
+    strengthText
   } = options;
 
   let eventsBound = false;
@@ -57,12 +60,60 @@ export function createVaultModule(options) {
 
     deleteButton.addEventListener('click', handleDelete);
     passwordToggleButton.addEventListener('click', togglePasswordVisibility);
+    
+    // Listener para calcular força da senha
+    if (inputs.password) {
+      inputs.password.addEventListener('input', updateStrengthMeter);
+    }
 
     closeButtons.forEach((button) => {
       button.addEventListener('click', () => toggleOverlay(false));
     });
 
     eventsBound = true;
+  }
+
+  // --- Lógica de Força da Senha ---
+  function updateStrengthMeter() {
+    const pwd = inputs.password.value || '';
+    const result = calculatePasswordStrength(pwd);
+    
+    if (!strengthFill || !strengthText) return;
+
+    // Reseta visibilidade
+    if (pwd.length === 0) {
+       strengthFill.style.width = '0%';
+       setText(strengthText, '');
+       return;
+    }
+
+    // Cores e Largura baseadas no score (0 a 4)
+    let color = '#e53e3e'; // Vermelho
+    let label = 'Muito Fraca';
+    let width = '10%';
+
+    if (result.score === 1) { width = '25%'; label = 'Fraca'; color = '#e53e3e'; }
+    else if (result.score === 2) { width = '50%'; label = 'Média'; color = '#ecc94b'; } // Amarelo
+    else if (result.score === 3) { width = '75%'; label = 'Forte'; color = '#48bb78'; } // Verde claro
+    else if (result.score >= 4) { width = '100%'; label = 'Muito Forte'; color = '#38a169'; } // Verde forte
+
+    strengthFill.style.width = width;
+    strengthFill.style.backgroundColor = color;
+    setText(strengthText, label);
+    strengthText.style.color = color;
+  }
+
+  function calculatePasswordStrength(password) {
+    let score = 0;
+    if (!password) return { score: 0 };
+
+    if (password.length > 6) score++;
+    if (password.length > 10) score++;
+    if (/[A-Z]/.test(password)) score += 0.5;
+    if (/[0-9]/.test(password)) score += 0.5;
+    if (/[^A-Za-z0-9]/.test(password)) score++; // Símbolos
+
+    return { score: Math.floor(score) };
   }
 
   function renderList() {
@@ -97,7 +148,6 @@ export function createVaultModule(options) {
     setText(nameEl, item.site);
     setText(userEl, item.username);
 
-    // Atualiza o ícone para o favicon do site salvo, com fallback para SVG padrão
     if (iconImg && item.site) {
       try {
         let domain = item.site.trim();
@@ -108,7 +158,6 @@ export function createVaultModule(options) {
         }
         iconImg.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
         iconImg.alt = `Favicon de ${domain}`;
-        // Fallback: se não carregar, usa SVG padrão
         iconImg.onerror = function() {
           this.onerror = null;
           this.src = '../assets/internet.svg';
@@ -153,6 +202,7 @@ export function createVaultModule(options) {
     inputs.site.value = '';
     inputs.username.value = '';
     inputs.password.value = '';
+    updateStrengthMeter(); // Reseta a barra visualmente
     toggleHidden(deleteButton, true);
     resetPasswordField();
     toggleOverlay(true);
@@ -166,6 +216,7 @@ export function createVaultModule(options) {
     inputs.site.value = entry.site || '';
     inputs.username.value = entry.username || '';
     inputs.password.value = entry.password || '';
+    updateStrengthMeter(); // Atualiza barra com a senha existente
     toggleHidden(deleteButton, false);
     resetPasswordField();
     toggleOverlay(true);
@@ -232,39 +283,28 @@ export function createVaultModule(options) {
     }
   }
 
-  // --- Exportação CSV ---
+  // --- Export/Import CSV (Código existente mantido abreviado para focar nas mudanças) ---
   async function exportToCsv() {
     const items = await VaultService.getAll();
-    if (!items.length) {
-      alert('Nenhuma credencial para exportar.');
-      return;
-    }
+    if (!items.length) { alert('Nenhuma credencial para exportar.'); return; }
     const header = ['site','username','password'];
     const rows = items.map(item => [item.site, item.username, item.password]);
     const csv = [header, ...rows].map(r => r.map(escapeCsv).join(',')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'credenciais.csv';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
+    a.href = url; a.download = 'credenciais.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
   }
 
   function escapeCsv(val) {
     if (val == null) return '';
     const s = String(val);
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-      return '"' + s.replace(/"/g, '""') + '"';
-    }
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
     return s;
   }
 
-  // --- Importação CSV ---
   async function importFromCsv(file) {
     const text = await file.text();
     const lines = text.split(/\r?\n/).filter(Boolean);
@@ -274,21 +314,13 @@ export function createVaultModule(options) {
     const siteIdx = cols.indexOf('site');
     const userIdx = cols.indexOf('username');
     const passIdx = cols.indexOf('password');
-    if (siteIdx === -1 || userIdx === -1 || passIdx === -1) {
-      alert('Cabeçalho CSV inválido. Esperado: site, username, password');
-      return;
-    }
+    if (siteIdx === -1 || userIdx === -1 || passIdx === -1) return alert('Cabeçalho CSV inválido.');
+    
     const newItems = rows.map(line => {
       const vals = parseCsvLine(line);
-      return {
-        id: crypto.randomUUID(),
-        site: vals[siteIdx] || '',
-        username: vals[userIdx] || '',
-        password: vals[passIdx] || ''
-      };
+      return { id: crypto.randomUUID(), site: vals[siteIdx] || '', username: vals[userIdx] || '', password: vals[passIdx] || '' };
     }).filter(item => item.site && item.password);
-    if (!newItems.length) return alert('Nenhuma credencial válida encontrada.');
-    // Mesclar com existentes, evitando duplicatas (site+username)
+
     const current = await VaultService.getAll();
     const exists = new Set(current.map(item => `${(item.site||'').trim().toLowerCase()}|${(item.username||'').trim().toLowerCase()}`));
     const filtered = newItems.filter(item => {
@@ -297,7 +329,8 @@ export function createVaultModule(options) {
       exists.add(key);
       return true;
     });
-    if (!filtered.length) return alert('Nenhuma credencial nova para importar.');
+
+    if (!filtered.length) return alert('Nenhuma credencial nova.');
     const merged = [...current, ...filtered];
     await VaultService.saveAll(merged);
     alert(`${filtered.length} credenciais importadas!`);
@@ -311,23 +344,15 @@ export function createVaultModule(options) {
       const c = line[i];
       if (inQuotes) {
         if (c === '"') {
-          if (line[i+1] === '"') { cur += '"'; ++i; }
-          else inQuotes = false;
+          if (line[i+1] === '"') { cur += '"'; ++i; } else inQuotes = false;
         } else cur += c;
-      } else if (c === ',') {
-        result.push(cur); cur = '';
-      } else if (c === '"') {
-        inQuotes = true;
-      } else cur += c;
+      } else if (c === ',') { result.push(cur); cur = ''; }
+      else if (c === '"') { inQuotes = true; }
+      else cur += c;
     }
     result.push(cur);
     return result;
   }
 
-  return {
-    init,
-    renderList,
-    exportToCsv,
-    importFromCsv
-  };
+  return { init, renderList, exportToCsv, importFromCsv };
 }

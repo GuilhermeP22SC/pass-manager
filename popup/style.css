@@ -1,35 +1,38 @@
-/* Switch ON/OFF animado */
-.switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 10px 0 0 0;
-  font-size: 14px;
-  color: var(--text-main);
-}
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-/* REMOVIDO: Estilo de hover foi movido para a seção List abaixo para melhor organização. */
+/* popup/style.css */
 
 :root {
-  --primary: #0e4e55;
-  /* Dark Teal */
+  /* Cores Padrão (Light Mode) */
+  --primary: #0e4e55;         /* Dark Teal */
   --primary-hover: #0a3a40;
-  --accent: #2d7b7b;
-  /* Light Teal for icons/links */
+  --accent: #2d7b7b;          /* Light Teal */
   --bg-app: #f5f7f9;
   --bg-white: #ffffff;
+  --bg-input: #ffffff;
   --text-main: #223038;
   --text-muted: #5e6d75;
   --border: #e0e4e8;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --font-family: "Segoe UI", "Roboto", sans-serif;
+  
+  /* Cores Específicas para Inputs e Scrollbars */
+  --input-border: #cad1d7;
+  --card-hover-border: #cbd2d9;
+}
+
+/* Sobrescrita para Dark Mode */
+[data-theme="dark"] {
+  --primary: #4fd1c5;         /* Teal mais brilhante para contraste no escuro */
+  --primary-hover: #38b2ac;
+  --accent: #81e6d9;
+  --bg-app: #171923;          /* Fundo muito escuro */
+  --bg-white: #2d3748;        /* Fundo dos cartões */
+  --bg-input: #1a202c;        /* Fundo dos inputs */
+  --text-main: #f7fafc;       /* Texto quase branco */
+  --text-muted: #a0aec0;      /* Texto cinza claro */
+  --border: #4a5568;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --input-border: #4a5568;
+  --card-hover-border: #718096;
 }
 
 * {
@@ -39,11 +42,26 @@
 body {
   width: 380px;
   height: 600px;
-  /* Altura maior conforme imagem */
   margin: 0;
   font-family: var(--font-family);
   background: var(--bg-app);
   color: var(--text-main);
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Scrollbar estilizada para combinar com o tema */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-app); 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border); 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted); 
 }
 
 #app-layout {
@@ -56,7 +74,7 @@ body {
 .top-nav {
   display: flex;
   justify-content: space-around;
-  background: var(--primary);
+  background: #0e4e55; /* Mantém o header teal fixo ou usa var(--bg-white) se preferir mudar */
   padding: 8px 0;
   border-bottom: 1px solid transparent;
 }
@@ -69,18 +87,19 @@ body {
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.7);
   padding: 4px 12px;
   border-radius: 8px;
 }
 
 .nav-item:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
 .nav-item.active {
-  background: #e8eaed71;
-  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
   font-weight: 600;
 }
 
@@ -96,11 +115,12 @@ body {
 .nav-icon img {
   width: 20px;
   height: 20px;
+  filter: brightness(0) invert(1); /* Garante ícones brancos no header */
 }
 
 .nav-label {
   font-size: 11px;
-  color: white;
+  color: inherit;
 }
 
 /* --- MAIN CONTENT --- */
@@ -124,7 +144,8 @@ body {
 .search-box input {
   width: 100%;
   padding: 10px 12px 10px 40px;
-  border: 1px solid #cad1d7;
+  background: var(--bg-white);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font-size: 15px;
   color: var(--text-main);
@@ -143,51 +164,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.6;
 }
 
 .search-icon img {
   width: 18px;
   height: 18px;
-}
-
-/* Categories */
-.category-tabs {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 4px 16px 12px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
-}
-
-.tab-pill {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  padding: 6px 16px;
-  border-radius: 20px;
-  color: var(--primary);
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-}
-
-.tab-text {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.tab-text:hover {
-  color: var(--text-main);
-}
-
-.tab-text.active {
-  color: var(--primary);
-  font-weight: 600;
+  /* Filtro para ajustar ícone preto para branco no dark mode se necessário, 
+     mas opacidade resolve bem */
 }
 
 /* Scroll Area */
@@ -213,11 +197,12 @@ body {
   padding: 12px;
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
+  border: 1px solid transparent;
 }
 
 .card:hover {
-  border-color: #cbd2d9;
+  border-color: var(--card-hover-border);
 }
 
 .add-card {
@@ -230,13 +215,13 @@ body {
 .item-icon-box {
   width: 40px;
   height: 40px;
-  background: #eff2f5;
+  background: var(--bg-app); /* Adapta ao fundo */
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
 
 .add-text {
@@ -285,12 +270,10 @@ body {
   display: none;
 }
 
-/* --- NOVO ESTILO PARA BOTÕES CSV --- */
 .csv-action-btn {
   background: var(--bg-white);
   border: 1px solid var(--border);
   color: var(--primary);
-  /* Cor principal para o texto */
   font-weight: 600;
   font-size: 11px;
   padding: 4px 10px;
@@ -304,11 +287,9 @@ body {
 .csv-action-btn:hover,
 .csv-action-btn:focus {
   background: var(--primary);
-  color: #fff;
+  color: var(--bg-white); /* Texto inverte */
   border-color: var(--primary);
 }
-
-/* --- FIM DO NOVO ESTILO CSV --- */
 
 .vault-list {
   list-style: none;
@@ -327,11 +308,11 @@ body {
   align-items: center;
   gap: 12px;
   transition: background 0.1s;
+  border: 1px solid transparent;
 }
 
 .vault-item:hover {
-  background: #fcfdfd;
-  border-color: #c0c8d0;
+  border-color: var(--card-hover-border);
 }
 
 .item-info {
@@ -346,7 +327,7 @@ body {
   display: block;
   font-weight: 600;
   font-size: 14px;
-  color: var(--primary);
+  color: var(--text-main); /* Cor dinâmica */
 }
 
 .item-sub {
@@ -370,23 +351,27 @@ body {
   padding: 6px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--primary);
+  color: var(--text-muted);
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
 .btn-icon-action img {
-  width: 16px;
-  height: 16px;
-  display: block;
+  /* Filtro para inverter ícones pretos em fundo escuro */
+  filter: var(--icon-filter, none); 
+}
+[data-theme="dark"] .btn-icon-action img,
+[data-theme="dark"] .search-icon img,
+[data-theme="dark"] .item-icon-box img {
+   /* Se os SVGs forem pretos, isso os torna brancos. Se já tiverem cor, cuidado. */
+   filter: brightness(0) invert(1);
 }
 
 .btn-icon-action:hover {
-  background: #eff2f5;
+  background: var(--bg-app);
+  color: var(--primary);
 }
-
 
 /* --- OVERLAYS (Edit/Gen) --- */
 .overlay {
@@ -395,16 +380,14 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f7f9;
+  background: var(--bg-app);
   z-index: 10;
   display: flex;
   flex-direction: column;
 }
 
-/* Adicione este bloco específico para o Lock Screen */
 #lock-screen {
   z-index: 9999;
-  /* Garante que fique acima de tudo */
   background: var(--bg-app);
 }
 
@@ -423,7 +406,7 @@ body {
   height: 64px;
   margin-bottom: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(14, 78, 85, 0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .lock-desc {
@@ -441,7 +424,7 @@ body {
 }
 
 .error-msg {
-  color: #d32f2f;
+  color: #e53e3e;
   font-size: 12px;
   margin-bottom: 10px;
   height: 16px;
@@ -460,7 +443,7 @@ body {
 .overlay-header h3 {
   margin: 0;
   font-size: 16px;
-  color: var(--primary);
+  color: var(--text-main);
 }
 
 .btn-close {
@@ -468,6 +451,7 @@ body {
   border: none;
   font-size: 18px;
   cursor: pointer;
+  color: var(--text-muted);
 }
 
 .btn-save-text {
@@ -497,15 +481,19 @@ body {
   margin-bottom: 6px;
 }
 
-.form-group input {
+.form-group input, 
+.form-group select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ced4da;
+  background: var(--bg-input);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font-size: 14px;
+  color: var(--text-main);
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   border-color: var(--accent);
   outline: none;
 }
@@ -520,16 +508,51 @@ body {
 }
 
 .pass-wrapper button {
-  background: none;
-  border: 1px solid #ced4da;
+  background: var(--bg-input);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+}
+[data-theme="dark"] .pass-wrapper button img {
+  filter: brightness(0) invert(1);
 }
 
+
+/* --- NOVA BARRA DE FORÇA DE SENHA (Formulário) --- */
+.strength-container {
+  margin-top: 8px;
+}
+.strength-bar-bg {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  width: 100%;
+  overflow: hidden;
+}
+.strength-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #e53e3e; /* Começa vermelho */
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+.strength-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: right;
+  font-weight: 600;
+}
+
+
+/* Botões */
 .btn-teal-block {
   width: 100%;
-  background: var(--accent);
-  color: white;
+  background: var(--primary);
+  color: white; /* No dark mode, o texto do botão deve ser escuro ou claro? White funciona bem no Teal */
   border: none;
   padding: 12px;
   border-radius: 6px;
@@ -537,9 +560,12 @@ body {
   cursor: pointer;
   margin-top: 12px;
 }
+.btn-teal-block:hover {
+  background: var(--primary-hover);
+}
 
 .btn-text-danger {
-  color: #d32f2f;
+  color: #e53e3e;
   background: none;
   border: none;
   font-size: 13px;
@@ -556,21 +582,15 @@ body {
   text-align: center;
 }
 
-.gen-display {
-  font-family: monospace;
-  font-size: 20px;
-  padding: 20px;
-  background: #e2e6ea;
-  border-radius: 8px;
-  word-break: break-all;
-}
-
-.autofill-card {
+/* Generator & Autofill Cards */
+.autofill-card, .gen-top-card, .gen-settings-card {
   margin-top: 16px;
   padding: 20px;
+  background: var(--bg-white);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .autofill-card h3 {
@@ -587,8 +607,7 @@ body {
 }
 
 .site-status-row {
-  background: #f3f4f6;
-  /* Cinza claro */
+  background: var(--bg-app);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -598,27 +617,11 @@ body {
   margin-bottom: 8px;
 }
 
-.site-favicon {
-  width: 32px;
-  height: 32px;
-  background: #fff;
-  border-radius: 50%;
-  padding: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.site-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
 .site-domain {
   font-weight: 600;
   font-size: 14px;
   color: var(--text-main);
 }
-
 .site-status {
   font-size: 12px;
   color: var(--text-muted);
@@ -627,95 +630,90 @@ body {
 .btn-pause {
   background: transparent;
   border: none;
-  color: var(--primary);
-  /* Teal */
+  color: var(--accent);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
 }
 
-.btn-pause:hover {
-  text-decoration: underline;
-}
-
-.link-arrow,
-.link-external {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 13px;
-  display: inline-block;
-  margin-top: 4px;
-}
-
-.link-arrow:hover,
-.link-external:hover {
-  color: var(--primary-hover);
-}
-
-.gen-top-card,
-.gen-settings-card {
-  margin-top: 16px;
-  padding: 20px;
+/* Toggle Switch (Dark Mode) */
+.switch-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-/* Display da Senha */
-.gen-display-wrapper {
-  margin-bottom: 20px;
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: var(--primary);
+}
+input:checked + .slider:before {
+  transform: translateX(18px);
 }
 
+
+/* Generator Results */
+.gen-display-wrapper { margin-bottom: 20px; }
 .password-display {
   font-family: "Consolas", "Monaco", monospace;
   font-size: 24px;
   margin-bottom: 8px;
   word-break: break-all;
   letter-spacing: 1px;
+  color: var(--text-main);
 }
-
-/* Cores dos caracteres conforme imagem */
-.char-normal {
-  color: #223038;
-}
-
-.char-digit {
-  color: #0074d9;
-  /* Azul */
-}
-
-.char-symbol {
-  color: #c05621;
-  /* Laranja queimado */
-}
-
 .strength-line {
   height: 4px;
   background: #10b981;
-  /* Verde */
   border-radius: 2px;
   width: 100%;
   margin-bottom: 6px;
 }
-
 .strength-label {
   font-size: 12px;
-  color: #0e7c59;
-  /* Verde escuro */
+  color: #10b981;
   font-weight: 600;
 }
-
-/* Botões de Ação do Topo */
-.gen-actions-row {
-  display: flex;
-  gap: 12px;
-}
-
+.gen-actions-row { display: flex; gap: 12px; }
 .btn-teal-action {
   flex: 1;
   background: var(--accent);
-  /* Teal */
-  color: white;
+  color: #fff; /* Texto fixo branco */
   border: none;
   padding: 10px;
   border-radius: 6px;
@@ -727,239 +725,43 @@ body {
   justify-content: center;
   gap: 8px;
 }
-
-
-/* Pagamentos */
-.btn-teal-action:hover {
-  background: var(--primary);
+[data-theme="dark"] .btn-teal-action img {
+  filter: brightness(0) invert(1);
 }
+.btn-teal-action:hover { background: var(--primary-hover); }
 
-/* Settings Card */
-.setting-group {
-  margin-bottom: 20px;
-}
-
-/* Custom Radio */
-.radio-container {
-  display: flex;
-  align-items: center;
-  position: relative;
-  margin-bottom: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-main);
-}
-
-.radio-container input {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.checkmark-radio {
-  height: 20px;
-  width: 20px;
-  background-color: #fff;
-  border: 2px solid #cbd5e0;
-  border-radius: 50%;
-  margin-right: 10px;
-  position: relative;
-}
-
-.radio-container input:checked~.checkmark-radio {
-  background-color: var(--accent);
-  border-color: var(--accent);
-}
-
-.checkmark-radio:after {
-  content: "";
-  position: absolute;
-  display: none;
-  top: 5px;
-  left: 5px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: white;
-}
-
-.radio-container input:checked~.checkmark-radio:after {
-  display: block;
-}
-
-/* Custom Slider */
-.slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.slider-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-/* Custom Slider - Correção */
-
-.teal-slider {
-  -webkit-appearance: none;
-  /* Remove estilo padrão */
-  width: 100%;
-  height: 6px;
-  /* Altura desejada para o componente base */
-  background: transparent;
-  /* Deixa transparente para o track assumir a cor */
-  outline: none;
-  cursor: pointer;
-}
-
-/* Estilo do Trilho (A barra comprida) */
-.teal-slider::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 6px;
-  /* FORÇA a altura fina no trilho */
-  border-radius: 3px;
-  /* Mantém o seu gradiente de progresso */
-  background: linear-gradient(var(--accent), var(--accent)) 0/var(--sx) 100% no-repeat, #e2e8f0;
-}
-
-/* Estilo do Botão (A bolinha) */
-.teal-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 24px;
-  /* Altura da bolinha */
-  width: 24px;
-  border-radius: 50%;
-  background: #fff;
-  border: 1px solid #cbd5e0;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-  /* IMPORTANTE: Centraliza a bolinha no trilho */
-  /* Cálculo: (Altura do Trilho - Altura da Bolinha) / 2 */
-  /* (6px - 24px) / 2 = -9px */
-  margin-top: -9px;
-}
-
-/* Custom Checkbox */
-.check-container {
-  display: flex;
-  align-items: center;
-  position: relative;
-  margin-bottom: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text-main);
-}
-
-.check-container input {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.checkmark-box {
-  height: 20px;
-  width: 20px;
-  background-color: #fff;
-  border: 2px solid #cbd5e0;
-  border-radius: 4px;
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.check-container input:checked~.checkmark-box {
-  background-color: var(--accent);
-  border-color: var(--accent);
-}
-
-.checkmark-box:after {
-  content: "✓";
-  color: white;
-  font-size: 14px;
-  display: none;
-}
-
-.check-container input:checked~.checkmark-box:after {
-  display: block;
-}
-
-.btn-save-default {
-  width: 100%;
-  padding: 10px;
-  background: #f1f3f5;
-  color: #a0aec0;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: not-allowed;
-  margin-top: 8px;
-}
-
-.btn-history {
-  width: 100%;
-  padding: 12px;
-  background: #e2e8f0;
-  color: var(--text-muted);
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 16px;
-  margin-bottom: 20px;
-}
-
-/* --- BADGE DE SEGURANÇA (Novo) --- */
+/* Badge */
 .security-badge {
   display: inline-flex;
   align-items: center;
   width: fit-content;
   font-size: 8px;
-  background-color: #f1f5f3;
-  color: #000000;
+  background-color: var(--bg-app);
+  color: var(--text-muted);
   padding: 2px 6px;
   border-radius: 4px;
   margin-top: 4px;
   font-weight: 600;
-  /* border: 1px solid #a7f3d0; */
   letter-spacing: 0.2px;
+  border: 1px solid var(--border);
 }
 
-.btn-text-link {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  /* Cor Primária */
+.btn-history {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-app);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 13px;
   cursor: pointer;
   margin-top: 16px;
-  text-decoration: none;
-  transition: color 0.2s;
-  padding: 8px;
-  display: inline-block;
-}
-
-.btn-text-link:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-
-.btn-text-link:focus {
-  outline: 2px solid var(--accent);
-  border-radius: 4px;
+  margin-bottom: 20px;
 }
 
 .btn-danger-block {
   width: 100%;
   background: #e53e3e;
-  /* Vermelho */
   color: white;
   border: none;
   padding: 12px;
@@ -967,11 +769,9 @@ body {
   font-weight: 600;
   cursor: pointer;
   margin-top: 20px;
-  /* Separado do topo */
   font-size: 14px;
   transition: background 0.2s;
 }
-
 .btn-danger-block:hover {
   background: #c53030;
 }

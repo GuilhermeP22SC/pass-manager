@@ -79,7 +79,19 @@
     <div id="view-autofill" class="content-view hidden">
       <div class="scroll-area">
         <div class="card autofill-card">
-          <h3>Controles</h3>
+          <h3>Aparência</h3>
+          <p class="card-desc">Personalize a visualização da extensão.</p>
+          <div class="switch-row">
+            <span>Modo Escuro</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-dark-mode">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card autofill-card">
+          <h3>Controles de Site</h3>
           <p class="card-desc">Escolha como este site deve se comportar.</p>
           <div class="site-status-row">
             <img id="current-favicon" src="../assets/internet.svg" class="site-favicon" alt="">
@@ -102,7 +114,7 @@
           <p class="card-desc">Gerencie o acesso ao seu cofre.</p>
           <div class="setting-group" style="margin-top:15px;">
             <label style="font-size:12px; font-weight:600; color:var(--text-muted);">BLOQUEIO AUTOMÁTICO</label>
-            <select id="opt-timer" style="width:100%; margin-top:5px; padding:8px; border-radius:6px; border:1px solid #ced4da;">
+            <select id="opt-timer" style="width:100%;margin-top:5px;padding:8px;color: var(--text-main);background: var(--bg-app);border-radius:6px;border:1px solid var(--input-border);">
               <option value="5">5 Minutos</option>
               <option value="10" selected>10 Minutos</option>
               <option value="30">30 Minutos</option>
@@ -110,8 +122,8 @@
             </select>
             <div id="lock-timer-display" style="font-size:11px; color:var(--text-muted); margin-top:5px;"></div>
           </div>
-          <div class="setting-group" style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
-            <button id="btn-export-key" class="btn-history" style="margin:0; background:#fff; border:1px solid #ced4da;">🔑 Exportar Chave de Encriptação</button>
+          <div class="setting-group" style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
+            <button id="btn-export-key" class="btn-history">🔑 Exportar Chave de Encriptação</button>
             <button id="btn-logout" class="btn-danger-block">Sair da conta</button>
           </div>
         </div>
@@ -177,6 +189,12 @@
           <div class="pass-wrapper">
             <input type="password" id="entry-password" required>
             <button type="button" id="btn-toggle-pass"><img id="icon-eye" src="../assets/eye-closed.svg" style="width:20px;"></button>
+          </div>
+          <div class="strength-container">
+            <div class="strength-bar-bg">
+              <div id="entry-strength-fill" class="strength-bar-fill"></div>
+            </div>
+            <div id="entry-strength-text" class="strength-text"></div>
           </div>
         </div>
         <div class="form-actions-bottom">
