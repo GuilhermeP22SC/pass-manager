@@ -70,6 +70,10 @@ async function handleGetLogin(url) {
   try {
     const vault = await getVault();
     if (!Array.isArray(vault) || vault.length === 0) return [];
+
+    if (url === 'CARD_REQUEST') {
+       return vault.filter(i => i.type === 'card');
+    }
     
     const hostname = new URL(url).hostname;
     

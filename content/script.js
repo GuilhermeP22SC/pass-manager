@@ -9,6 +9,14 @@ const SCAN_DEBOUNCE_MS = 500;
 const USERNAME_REGEX = /user|name|login|mail|id|conta|usuario|utilizador/i;
 const SUBMIT_REGEX = /login|sign|entrar|acessar|logon|submit/i;
 
+// --- NOVAS CONSTANTES PARA CARTÃO DE CRÉDITO ---
+const CC_REGEX = {
+  number: /card.?number|numero.?cartao|pan|cc.?num|credit.?card/i,
+  name: /card.?holder|nome.?titular|owner|name.?on.?card/i,
+  cvv: /cvv|cvc|security.?code|codigo.?seguranca|verification/i,
+  expiry: /expir|valid|vencimento|month|year/i
+};
+
 // CSS para o seletor de contas
 const SELECTOR_STYLES = `
   .pm-selector-menu {
@@ -72,11 +80,11 @@ document.head.appendChild(styleEl);
 // --- NÚCLEO DE DETECÇÃO (ENGINE) ---
 
 async function runEnterpriseScan() {
-  const allInputs = deepQuerySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+  // Inclui 'select' para detecção de datas de validade (ex: Amazon)
+  const allInputs = deepQuerySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select');
   
+  // 1. Password/Login Scan
   const passwordInputs = allInputs.filter(el => el.type === 'password' || el.name?.toLowerCase().includes('password'));
-
-  if (passwordInputs.length === 0) return;
 
   for (const passInput of passwordInputs) {
     if (passInput.dataset.pmProcessed) continue;
@@ -98,16 +106,110 @@ async function runEnterpriseScan() {
     try {
       const matches = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
       // Se houver matches, preenche o primeiro automaticamente ao carregar
-      if (matches && matches.length > 0) {
+      if (matches && matches.length > 0 && userInput && passInput) {
         fillFields(userInput, passInput, matches[0]);
       }
     } catch (e) {}
   }
 
+  // 2. Credit Card Scan
+  runCreditCardScan(allInputs);
+  
   checkPendingCredentials();
 }
 
-// --- TRAVERSAL & HEURÍSTICA (Inalterado) ---
+// --- ENGINE DE CARTÃO DE CRÉDITO ---
+
+function runCreditCardScan(allInputs) {
+  // Filtra candidatos a número de cartão (campo principal)
+  const ccInputs = allInputs.filter(el => {
+    // Evita inputs com type=password, já tratados acima.
+    if (el.type === 'password' || el.dataset.pmProcessed) return false;
+    
+    const score = calculateCCScore(el);
+    return score >= 20; // Limiar de confiança (ajustável)
+  });
+
+  for (const ccInput of ccInputs) {
+    // Tenta encontrar os "irmãos" do cartão (CVV, Data, Nome) próximos a ele
+    const group = findCardFieldGroup(ccInput, allInputs);
+    
+    // Marca todos como processados para não injetar ícone duplicado
+    Object.values(group).forEach(el => { 
+        if(el) el.dataset.pmProcessed = 'true'; 
+    });
+
+    // Injeta o ícone apenas no campo do número do cartão
+    if (group.number) {
+      injectCCIcon(group.number, group);
+    }
+  }
+}
+
+function calculateCCScore(input) {
+  let score = 0;
+  const attrString = `${input.name} ${input.id} ${input.placeholder} ${input.getAttribute('aria-label')}`.toLowerCase();
+  
+  // Heurística Forte (padrão do navegador ou palavras-chave claras)
+  if (input.autocomplete === 'cc-number') score += 50;
+  if (CC_REGEX.number.test(attrString)) score += 30;
+  
+  // Heurística de Formato
+  // A maioria dos cartões tem 16 dígitos. Amazon usa type="tel".
+  if (input.type === 'tel' && input.maxLength >= 13 && input.maxLength <= 19) score += 10;
+  if (input.id && attrString.includes('cardnumber')) score += 20; // Campo do Mercado Livre
+
+  return score;
+}
+
+function findCardFieldGroup(numberInput, allInputs) {
+  // Procura campos relacionados num raio de proximidade no DOM
+  const index = allInputs.indexOf(numberInput);
+  // Olha 10 campos para trás e 10 para frente (cerca de 20 campos de alcance)
+  const range = allInputs.slice(Math.max(0, index - 10), Math.min(allInputs.length, index + 10));
+
+  const group = {
+    number: numberInput,
+    name: null,
+    expiry: null,     // Campo único (MM/AA)
+    expMonth: null,   // Select ou input separado
+    expYear: null,    // Select ou input separado
+    cvv: null
+  };
+
+  range.forEach(input => {
+    if (input === numberInput || input.dataset.pmProcessed) return;
+    const attrString = `${input.name} ${input.id} ${input.placeholder} ${input.getAttribute('aria-label')}`.toLowerCase();
+    
+    // Detecção de Nome
+    if (!group.name && (input.autocomplete === 'cc-name' || CC_REGEX.name.test(attrString))) {
+      group.name = input;
+    }
+    
+    // Detecção de CVV
+    // Note: CVV é sempre password/tel/text e com max-length 3-4
+    if (!group.cvv && (input.autocomplete === 'cc-csc' || CC_REGEX.cvv.test(attrString)) && input.maxLength <= 4) {
+      group.cvv = input;
+    }
+
+    // Detecção de Validade (Selects)
+    if (input.tagName === 'SELECT') {
+      if (attrString.includes('month') || input.options.length === 12) {
+         group.expMonth = input;
+      } else if (attrString.includes('year') && input.options.length > 10) {
+         group.expYear = input;
+      }
+    } 
+    // Detecção de Validade (Campo único MM/AA)
+    else if (!group.expiry && CC_REGEX.expiry.test(attrString) && input.maxLength <= 5) {
+       group.expiry = input;
+    }
+  });
+
+  return group;
+}
+
+// --- TRAVERSAL & HEURÍSTICA (Lógica de Login) ---
 function deepQuerySelectorAll(selector, root = document) {
   let results = Array.from(root.querySelectorAll(selector));
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
@@ -159,7 +261,7 @@ function isVisible(el) {
   return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
 }
 
-// --- LISTENERS E CAPTURA (Inalterado) ---
+// --- LISTENERS E CAPTURA (Login) ---
 function attachTrafficListeners(passInput, userInput) {
   const inputs = [passInput, userInput].filter(Boolean);
   inputs.forEach(input => {
@@ -224,50 +326,22 @@ async function handleCredentialCapture(userInput, passInput) {
   }
 }
 
-// --- UI INJECTION E SELEÇÃO ---
+// --- UI INJECTION E SELEÇÃO (LOGIN) ---
 
+// Função original para injeção de ícone em campos de LOGIN/PASSWORD
 function injectIcon(targetInput, relatedUser, relatedPass) {
   if (targetInput.dataset.pmIconAttached === 'true') return;
   if (!targetInput.parentElement) return;
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'pm-icon-wrapper';
-  const computed = window.getComputedStyle(targetInput);
-  wrapper.style.cssText = `
-    position: relative;
-    display: ${computed.display === 'block' ? 'block' : 'inline-block'};
-    width: ${targetInput.offsetWidth}px;
-    margin: ${computed.margin};
-    padding: 0;
-    border: none;
-    background: transparent;
-    vertical-align: ${computed.verticalAlign};
-  `;
+  const wrapper = createIconWrapper(targetInput);
 
   targetInput.parentElement.insertBefore(wrapper, targetInput);
   wrapper.appendChild(targetInput);
   targetInput.dataset.pmIconAttached = 'true';
-  targetInput.focus(); 
+  // targetInput.focus(); // Removido focus para evitar roubo de foco
 
-  const icon = document.createElement('img');
-  icon.src = PM_ICON_URL;
-  icon.style.cssText = `
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
-    cursor: pointer;
-    z-index: 1000;
-    opacity: 0.5;
-    transition: opacity 0.2s, transform 0.2s;
-  `;
-  icon.title = "Gerenciador de Senhas";
+  const icon = createIconElement();
   
-  icon.onmouseover = () => icon.style.opacity = '1';
-  icon.onmouseout = () => icon.style.opacity = '0.5';
-
   icon.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -279,12 +353,13 @@ function injectIcon(targetInput, relatedUser, relatedPass) {
     const matches = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: window.location.href });
     
     if (matches && matches.length > 0) {
-      if (matches.length === 1) {
-        // Apenas um? Preenche direto.
-        fillFields(relatedUser, relatedPass, matches[0]);
+      const loginMatches = matches.filter(i => i.type === 'login' || !i.type); // Filtra só logins
+      if (loginMatches.length === 1) {
+        fillFields(relatedUser, relatedPass, loginMatches[0]);
+      } else if (loginMatches.length > 1) {
+        showCredentialSelector(icon, loginMatches, relatedUser, relatedPass);
       } else {
-        // Vários? Mostra seletor.
-        showCredentialSelector(icon, matches, relatedUser, relatedPass);
+        shakeElement(icon);
       }
     } else {
       shakeElement(icon);
@@ -294,7 +369,87 @@ function injectIcon(targetInput, relatedUser, relatedPass) {
   wrapper.appendChild(icon);
 }
 
-// Função Nova: Cria o menu de seleção com POSICIONAMENTO CORRIGIDO
+// --- UI INJECTION E SELEÇÃO (CARTÃO DE CRÉDITO) ---
+
+function injectCCIcon(targetInput, group) {
+  if (targetInput.dataset.pmIconAttached === 'true') return;
+  if (!targetInput.parentElement) return;
+
+  const wrapper = createIconWrapper(targetInput);
+
+  targetInput.parentElement.insertBefore(wrapper, targetInput);
+  wrapper.appendChild(targetInput);
+  targetInput.dataset.pmIconAttached = 'true';
+
+  const icon = createIconElement();
+  
+  icon.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Animação de clique
+    icon.style.transform = 'translateY(-50%) scale(0.9)';
+    setTimeout(() => icon.style.transform = 'translateY(-50%) scale(1)', 150);
+
+    // Usa um filtro específico para buscar APENAS cartões
+    const vaultItems = await chrome.runtime.sendMessage({ type: 'GET_LOGIN', url: 'CARD_REQUEST' }); 
+    const cards = vaultItems.filter(i => i.type === 'card'); // Filtra só cartões
+
+    if (cards.length > 0) {
+      if (cards.length === 1) {
+        fillCardForm(group, cards[0]);
+      } else {
+        showCardSelector(icon, cards, group);
+      }
+    } else {
+      shakeElement(icon);
+    }
+  });
+
+  wrapper.appendChild(icon);
+}
+
+
+function createIconWrapper(targetInput) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pm-icon-wrapper';
+    const computed = window.getComputedStyle(targetInput);
+    wrapper.style.cssText = `
+        position: relative;
+        display: ${computed.display === 'block' ? 'block' : 'inline-block'};
+        width: ${targetInput.offsetWidth}px;
+        margin: ${computed.margin};
+        padding: 0;
+        border: none;
+        background: transparent;
+        vertical-align: ${computed.verticalAlign};
+    `;
+    return wrapper;
+}
+
+function createIconElement() {
+    const icon = document.createElement('img');
+    icon.src = PM_ICON_URL;
+    icon.style.cssText = `
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
+        cursor: pointer;
+        z-index: 1000;
+        opacity: 0.5;
+        transition: opacity 0.2s, transform 0.2s;
+    `;
+    icon.title = "Gerenciador de Senhas";
+    
+    icon.onmouseover = () => icon.style.opacity = '1';
+    icon.onmouseout = () => icon.style.opacity = '0.5';
+    return icon;
+}
+
+// Função de Seleção de Login (original)
 function showCredentialSelector(icon, credentials, userField, passField) {
   // Remove seletor anterior se existir
   const existing = document.querySelector('.pm-selector-menu');
@@ -303,7 +458,6 @@ function showCredentialSelector(icon, credentials, userField, passField) {
   const menu = document.createElement('div');
   menu.className = 'pm-selector-menu';
 
-  // Popula o menu
   credentials.forEach(cred => {
     const item = document.createElement('div');
     item.className = 'pm-selector-item';
@@ -321,6 +475,40 @@ function showCredentialSelector(icon, credentials, userField, passField) {
     menu.appendChild(item);
   });
 
+  positionAndShowMenu(icon, menu);
+}
+
+// Função de Seleção de Cartão (nova)
+function showCardSelector(icon, cards, group) {
+  // Remove seletor anterior se existir
+  const existing = document.querySelector('.pm-selector-menu');
+  if (existing) existing.remove();
+
+  const menu = document.createElement('div');
+  menu.className = 'pm-selector-menu';
+
+  cards.forEach(card => {
+    const item = document.createElement('div');
+    item.className = 'pm-selector-item';
+    const last4 = (card.cardNumber || '').replace(/\D/g, '').slice(-4);
+    item.innerHTML = `
+      <span class="pm-sel-user">Cartão final **** ${last4}</span>
+      <span class="pm-sel-site">${escapeHtml(card.cardHolder)}</span>
+    `;
+    
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fillCardForm(group, card); // Usa função especializada
+      menu.remove();
+    });
+    
+    menu.appendChild(item);
+  });
+
+  positionAndShowMenu(icon, menu);
+}
+
+function positionAndShowMenu(icon, menu) {
   // 1. Adiciona ao body primeiro para calcular dimensões
   document.body.appendChild(menu);
 
@@ -366,19 +554,91 @@ function escapeHtml(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
+// --- FUNÇÕES DE PREENCHIMENTO (ENTERPRISE) ---
+
+// Preenchimento de Login (usa dispatchEvents)
 function fillFields(userInput, passInput, data) {
   if (passInput) {
-    passInput.value = data.password;
-    dispatchEvents(passInput);
+    setNativeValue(passInput, data.password);
   }
   if (userInput && data.username) {
-    userInput.value = data.username;
-    dispatchEvents(userInput);
+    setNativeValue(userInput, data.username);
+  }
+}
+
+// Preenchimento de Cartão (usa setNativeValue e setSelectValue)
+function fillCardForm(group, data) {
+  // Preenche Número
+  if (group.number) setNativeValue(group.number, (data.cardNumber || '').replace(/\s/g, ''));
+  
+  // Preenche Nome
+  if (group.name) setNativeValue(group.name, data.cardHolder);
+  
+  // Preenche CVV
+  if (group.cvv) setNativeValue(group.cvv, data.cvv);
+
+  // Lógica Especial para Datas (Campo Único vs Selects)
+  if (data.expiry) {
+    const [month, year] = data.expiry.split('/'); 
+    
+    if (group.expMonth && group.expYear) {
+      // Caso Amazon (Selects separados MM/AAAA)
+      
+      // Tenta setar o mês (remove zero à esquerda se necessário: 01 -> 1)
+      setSelectValue(group.expMonth, month);
+      
+      // Tenta setar o ano (Converte 25 para 2025)
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      setSelectValue(group.expYear, fullYear);
+      
+    } else if (group.expiry) {
+      // Caso padrão (Campo único MM/AA)
+      setNativeValue(group.expiry, data.expiry);
+    }
+  }
+}
+
+// Helper para disparar eventos de frameworks (React/Vue/Angular)
+function setNativeValue(element, value) {
+  if (!element || element.value === value) return; // Evita loop infinito
+
+  const lastValue = element.value;
+  element.value = value;
+  
+  // Dispara evento de 'input' para React/Frameworks
+  const event = new Event('input', { bubbles: true });
+  const tracker = element._valueTracker;
+  if (tracker) {
+    tracker.setValue(lastValue); // Hack para React 15/16
+  }
+  element.dispatchEvent(event);
+  
+  // Dispara eventos de 'change' e 'blur' para garantir a validação
+  element.dispatchEvent(new Event('change', { bubbles: true }));
+  element.dispatchEvent(new Event('blur', { bubbles: true }));
+}
+
+function setSelectValue(select, value) {
+  if (!select) return;
+  
+  // 1. Tenta encontrar a opção pelo value ou pelo texto
+  let option = Array.from(select.options).find(o => o.value == value || o.text.includes(value));
+  
+  // 2. Fallback: Tenta remover zero à esquerda (01 -> 1)
+  if (!option && value.startsWith('0')) {
+      const singleDigit = value.substring(1);
+      option = Array.from(select.options).find(o => o.value == singleDigit);
+  }
+
+  // 3. Aplica o valor e dispara o evento 'change'
+  if (option) {
+    select.value = option.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
 
 function dispatchEvents(element) {
-  // Simplificado para evitar conflitos de UI, mantendo funcionalidade
+  // Versão simplificada do setNativeValue para campos que não precisam de hacks de frameworks
   const events = ['input', 'change']; 
   events.forEach(evtType => {
     const event = new Event(evtType, { bubbles: true, cancelable: true });
