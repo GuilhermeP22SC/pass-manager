@@ -1,0 +1,23 @@
+# Node.js backend
+backend/node_modules/
+backend/.env
+
+# Logs
+*.log
+
+# OS/IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Build/output artifacts
+dist/
+build/
+
+# Chrome extension artifacts
+*.crx
+
+# Misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

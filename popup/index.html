@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Senhas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-layout">
+    
+    <nav class="top-nav">
+      <button class="nav-item active" id="nav-vault">
+        <span class="nav-icon"><img src="../assets/shield.svg" alt="" aria-hidden="true"></span>
+        <span class="nav-label">Vault</span>
+      </button>
+      <button class="nav-item" id="nav-autofill">
+        <span class="nav-icon"><img src="../assets/gear-settings.svg" alt="" aria-hidden="true"></span>
+        <span class="nav-label">Settings</span>
+      </button>
+      <button class="nav-item" id="nav-gen">
+        <span class="nav-icon"><img src="../assets/stars.svg" alt="" aria-hidden="true"></span>
+        <span class="nav-label">Generate</span>
+      </button>
+    </nav>
+
+    <main id="view-main" class="content-view">
+      <div class="search-container">
+        <div class="search-box">
+          <span class="search-icon"><img src="../assets/magnifying-glass.svg" alt="" aria-hidden="true"></span>
+          <input type="text" id="search-input" placeholder="Buscar">
+        </div>
+      </div>
+      <div class="scroll-area">
+        <div>
+          <div class="section-label">SUGERIDO</div>
+          <div class="card add-card" id="btn-add-hero">
+            <div class="item-icon-box placeholder"><img src="../assets/internet.svg" alt="Internet" style="width:20px;height:20px;"></div>
+            <div class="add-text">
+              <span class="add-title">Adicionar novo login</span>
+              <span class="add-subtitle">Nenhum login salvo para este site.</span>
+            </div>
+            <button class="btn-plus">+</button>
+          </div>
+          <div class="list-header-row">
+            <span class="sort-label">Nome do item ⌄</span>
+            <span class="count-label" id="item-count">0 itens</span>
+            <div class="list-actions-group">
+              <button id="btn-export-csv" class="csv-action-btn" title="Exportar CSV">Exportar</button>
+              <button id="btn-import-csv" class="csv-action-btn" type="button">Importar</button>
+              <input type="file" id="import-csv-input" accept=".csv" class="csv-file-input">
+            </div>
+          </div>
+          <div id="empty-state" class="empty-state hidden">Nenhuma conta encontrada.</div>
+          <ul id="password-list" class="vault-list"></ul>
+          
+          <template id="tpl-vault-item">
+            <li class="vault-item">
+              <div class="item-icon-box"><img src="../assets/internet.svg" alt="" style="width:20px;"></div>
+              <div class="item-info">
+                <span class="item-name"></span>
+                <span class="item-sub"></span>
+                <span class="security-badge">CRIPTOGRAFADA</span>
+              </div>
+              <div class="item-actions">
+                <button class="btn-icon-action copy-btn" title="Copiar">
+                  <img src="../assets/copy.svg" alt="Copiar" style="width:18px;height:18px;vertical-align:middle;">
+                </button>
+                <button class="btn-icon-action launch-btn" title="Abrir">
+                  <img src="../assets/open-in-new-window.svg" alt="Abrir site" style="width:18px;height:18px;vertical-align:middle;">
+                </button>
+              </div>
+            </li>
+          </template>
+        </div>
+      </div>
+    </main>
+
+    <div id="view-autofill" class="content-view hidden">
+      <div class="scroll-area">
+        <div class="card autofill-card">
+          <h3>Controles</h3>
+          <p class="card-desc">Escolha como este site deve se comportar.</p>
+          <div class="site-status-row">
+            <img id="current-favicon" src="../assets/internet.svg" class="site-favicon" alt="">
+            <div class="site-info">
+              <span class="site-domain" id="current-domain">exemplo.com</span>
+              <span class="site-status">Gerencie as opções abaixo</span>
+            </div>
+          </div>
+          <div class="site-status-row toggle-control">
+            <div class="site-info">
+              <span class="site-domain">Autofill</span>
+              <span class="site-status" id="site-status-autofill">Autofill ativo</span>
+            </div>
+            <button class="btn-pause" id="btn-toggle-autofill">Pausar</button>
+          </div>
+        </div>
+        
+        <div class="card autofill-card">
+          <h3>Segurança</h3>
+          <p class="card-desc">Gerencie o acesso ao seu cofre.</p>
+          <div class="setting-group" style="margin-top:15px;">
+            <label style="font-size:12px; font-weight:600; color:var(--text-muted);">BLOQUEIO AUTOMÁTICO</label>
+            <select id="opt-timer" style="width:100%; margin-top:5px; padding:8px; border-radius:6px; border:1px solid #ced4da;">
+              <option value="5">5 Minutos</option>
+              <option value="10" selected>10 Minutos</option>
+              <option value="30">30 Minutos</option>
+              <option value="0">Nunca</option>
+            </select>
+            <div id="lock-timer-display" style="font-size:11px; color:var(--text-muted); margin-top:5px;"></div>
+          </div>
+          <div class="setting-group" style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+            <button id="btn-export-key" class="btn-history" style="margin:0; background:#fff; border:1px solid #ced4da;">🔑 Exportar Chave de Encriptação</button>
+            <button id="btn-logout" class="btn-danger-block">Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-generator" class="content-view hidden">
+      <div class="scroll-area">
+        <div class="card gen-top-card">
+          <div class="gen-display-wrapper">
+            <div id="gen-result-html" class="password-display"></div>
+            <div class="strength-line"></div>
+            <div class="strength-label">Força máxima da senha alcançada!</div>
+          </div>
+          <div class="gen-actions-row">
+            <button id="btn-regenerate" class="btn-teal-action">↻ Refresh</button>
+            <button id="btn-copy-gen" class="btn-teal-action">
+              <img src="../assets/copy.svg" alt="Copiar" style="width:18px;height:18px;vertical-align:middle;">
+              <span class="btn-label" data-copy-label>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div class="card gen-settings-card">
+          <div class="setting-group slider-group">
+            <div class="slider-header">
+              <span>Length (4 - 40)</span>
+              <span id="len-val">16</span>
+            </div>
+            <input type="range" id="opt-length" min="4" max="40" value="16" class="teal-slider">
+          </div>
+          <div class="setting-group checks-group">
+            <label class="check-container">
+              <input type="checkbox" id="opt-letters" checked><span class="checkmark-box"></span>Letters
+            </label>
+            <label class="check-container">
+              <input type="checkbox" id="opt-digits" checked><span class="checkmark-box"></span>Digits
+            </label>
+            <label class="check-container">
+              <input type="checkbox" id="opt-symbols" checked><span class="checkmark-box"></span>Symbols
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-edit" class="overlay hidden">
+      <div class="overlay-header">
+        <button class="btn-close" data-target="main">✕</button>
+        <h3>Detalhes do Login</h3>
+        <button class="btn-save-text" id="btn-save-form" type="button">Salvar</button>
+      </div>
+      <form id="form-entry" class="overlay-content">
+        <div class="form-group">
+          <label>Website</label>
+          <input type="text" id="entry-site" placeholder="exemplo.com" required>
+        </div>
+        <div class="form-group">
+          <label>Email / Usuário</label>
+          <input type="text" id="entry-username" placeholder="nome@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <div class="pass-wrapper">
+            <input type="password" id="entry-password" required>
+            <button type="button" id="btn-toggle-pass"><img id="icon-eye" src="../assets/eye-closed.svg" style="width:20px;"></button>
+          </div>
+        </div>
+        <div class="form-actions-bottom">
+          <button type="button" id="btn-delete" class="btn-text-danger hidden">Excluir item</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+  <script type="module" src="main.js"></script>
+
+  <div id="lock-screen" class="overlay hidden" style="z-index: 9999; background: var(--bg-app);">
+    <div class="overlay-content centered lock-container">
+      <img src="../icons/logo.png" class="lock-logo">
+      <div id="lock-content">
+        <h3>Acesso ao Cofre</h3>
+        <p id="lock-header-desc" class="lock-desc">Digite suas credenciais.</p>
+        <div class="form-group">
+          <input type="email" id="unlock-email" placeholder="E-mail" class="input-center" style="margin-bottom:10px;">
+          <input type="password" id="unlock-pass" placeholder="Senha Mestra" class="input-center">
+        </div>
+        <div id="lock-error" class="error-msg"></div>
+        <button id="btn-unlock" class="btn-teal-block">Entrar</button>
+        <button id="btn-show-setup" class="btn-text-link">Não tem conta? Crie uma.</button>
+      </div>
+      <div id="setup-content" class="hidden">
+        <h3>Criar Novo Cofre</h3>
+        <p class="lock-desc">Configure sua conta. É necessário validar seu e-mail.</p>
+        <div id="step-request">
+          <div class="form-group">
+            <input type="email" id="setup-email" placeholder="Seu E-mail" class="input-center" required>
+          </div>
+          <div class="form-group">
+              <input type="password" id="setup-pass" placeholder="Crie sua Senha Mestra" class="input-center">
+          </div>
+          <button id="btn-send-code" class="btn-teal-block">Enviar Código</button>
+        </div>
+        <div id="step-verify" class="hidden" style="margin-top:10px;">
+          <p style="font-size:12px; color:var(--text-muted);">Código enviado (válido por 10min).</p>
+          <div class="form-group">
+            <input type="text" id="setup-code" placeholder="Código (6 dígitos)" class="input-center" maxlength="6">
+          </div>
+          <button id="btn-confirm-setup" class="btn-teal-block">Verificar e Criar</button>
+        </div>
+        <div id="setup-msg" class="error-msg" style="margin-top:10px; color:#0e4e55;"></div>
+        <button id="btn-back-step" class="btn-text-link">← Voltar ao Login</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
