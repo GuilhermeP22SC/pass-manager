@@ -69,23 +69,55 @@ async function getVault() {
 async function handleGetLogin(url) {
   try {
     const vault = await getVault();
+    // Se vault for vazio ou nulo, pode ser bloqueio ou cofre vazio.
     if (!Array.isArray(vault) || vault.length === 0) return [];
 
     if (url === 'CARD_REQUEST') {
        return vault.filter(i => i.type === 'card');
     }
     
-    const hostname = new URL(url).hostname;
+    // Normaliza o hostname da aba atual
+    let currentHostname;
+    try {
+      currentHostname = new URL(url).hostname.toLowerCase();
+    } catch (e) {
+      return [];
+    }
     
-    // MUDANÇA: Usa filter() para retornar TODOS os resultados correspondentes
+    // Filtra procurando match no URL ou no SITE (legado)
     const matches = vault.filter(item => {
-      if (!item.site) return false;
-      let site = item.site.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
-      return hostname.includes(site) || site.includes(hostname);
+      // Ignora itens que não sejam login
+      if (item.type && item.type !== 'login') return false;
+
+      // 1. Tenta pegar o domínio do campo URL (Onde está o link real agora)
+      let itemDomain = '';
+      if (item.url) {
+        try {
+          itemDomain = new URL(item.url).hostname.toLowerCase();
+        } catch (e) {
+          // Se item.url não for uma URL válida (ex: "localhost"), usa como string pura
+          itemDomain = item.url.toLowerCase();
+        }
+      } 
+      // 2. Fallback para item.site (Compatibilidade com itens antigos ou importados)
+      else if (item.site) {
+        itemDomain = item.site.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+      }
+
+      if (!itemDomain) return false;
+
+      // Verifica correspondência (incluindo subdomínios)
+      // Ex: itemDomain "google.com" bate com current "accounts.google.com"
+      return currentHostname.includes(itemDomain) || itemDomain.includes(currentHostname);
     });
     
-    return matches; // Retorna array vazio ou com itens
-  } catch (error) { return []; }
+    return matches;
+
+  } catch (error) {
+    // Log para debug: ajuda a saber se falhou por criptografia (LOCKED)
+    console.warn('Pass Manager Background: Falha ao buscar login.', error.message);
+    return []; 
+  }
 }
 
 async function handleCheckCredentialsExist(url, username) {
