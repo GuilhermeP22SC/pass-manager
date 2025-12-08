@@ -220,7 +220,21 @@ export function createVaultModule(options) {
       newItem.username = inputs.username.value.trim();
       newItem.password = inputs.password.value; 
       newItem.url = inputs.url.value.trim();
-      newItem.site = newItem.name; // Compatibilidade com autofill
+      
+      // CORREÇÃO: Define 'site' baseado na URL para o Autofill.
+      try {
+        if (newItem.url) {
+            // Usa o hostname da URL, que é o que o Service Worker procura.
+            newItem.site = new URL(newItem.url).hostname.replace(/^www\./, ''); 
+        } else {
+            // Se não tem URL, usa o nome como fallback (pior cenário)
+            newItem.site = newItem.name; 
+        }
+      } catch (e) {
+        // URL inválida, usa o nome como fallback.
+        newItem.site = newItem.name;
+      }
+
     } else if (type === 'card') {
       newItem.cardHolder = inputs.cardHolder.value.trim();
       newItem.cardNumber = inputs.cardNumber.value.trim();
@@ -286,13 +300,13 @@ export function createVaultModule(options) {
     const launchBtn = el.querySelector('.launch-btn');
 
     el.dataset.id = item.id;
-    setText(nameEl, item.name);
 
     // --- Renderização por Tipo ---
 
     if (item.type === 'card') {
       // CARTÃO
       const last4 = (item.cardNumber || '').replace(/\D/g, '').slice(-4);
+      setText(nameEl, item.name); // Mantém o nome do cartão
       setText(subEl, last4 ? `Terminado em ${last4}` : 'Cartão de Crédito');
       
       iconImg.src = ICON_CARD;
@@ -307,6 +321,7 @@ export function createVaultModule(options) {
 
     } else if (item.type === 'note') {
       // NOTA
+      setText(nameEl, item.name); // Mantém o título da nota
       setText(subEl, 'Nota Segura');
       iconImg.src = ICON_NOTE;
       iconImg.onerror = () => { iconImg.src = '../assets/internet.svg'; };
@@ -320,6 +335,12 @@ export function createVaultModule(options) {
 
     } else {
       // LOGIN (Padrão)
+
+      // MODIFICAÇÃO: Ajusta o nome principal. 
+      // Se houver URL, usa o nome de domínio limpo. Caso contrário, usa o nome salvo.
+      const displayTitle = item.url ? getDisplayHostname(item.url) : item.name;
+      setText(nameEl, displayTitle); 
+      
       setText(subEl, item.username);
       
       // Favicon
@@ -347,6 +368,37 @@ export function createVaultModule(options) {
   }
 
   // --- Funções Auxiliares ---
+
+  // NOVO: Função para extrair e formatar o nome do site (SLD)
+  function getDisplayHostname(urlOrDomain) {
+    if (!urlOrDomain) return '';
+    
+    let hostname;
+    try {
+      // 1. Tenta obter o hostname de forma segura
+      if (!urlOrDomain.includes('://')) {
+          urlOrDomain = 'https://' + urlOrDomain;
+      }
+      hostname = new URL(urlOrDomain).hostname;
+    } catch (e) {
+      hostname = urlOrDomain.split('/')[0];
+    }
+    
+    // 2. Limpeza: remove www., porta e converte para minúsculas
+    hostname = hostname.toLowerCase()
+                       .replace(/^www\./, '')
+                       .split(':')[0];
+    
+    // 3. Extrai o Second-Level Domain (SLD) e formata (ex: gmail.com -> Gmail)
+    const parts = hostname.split('.');
+    let sld = parts[0]; 
+    
+    if (sld) {
+        return sld.charAt(0).toUpperCase() + sld.slice(1);
+    }
+    
+    return hostname; // Retorna o hostname limpo como fallback
+  }
 
   function setupIcon(imgEl, domainOrUrl, fallbackIcon) {
     if (!domainOrUrl) {
@@ -431,6 +483,7 @@ export function createVaultModule(options) {
     const items = await VaultService.getAll();
     if (!items.length) { alert('Nenhum item para exportar.'); return; }
     
+    // Altera a exportação para garantir que o campo 'url' seja usado
     const header = ['type', 'name', 'username', 'password', 'url', 'extra'];
     const rows = items.map(item => [
       item.type || 'login',
@@ -469,14 +522,23 @@ export function createVaultModule(options) {
     const nameIdx = cols.indexOf('name');
     const userIdx = cols.indexOf('username');
     const passIdx = cols.indexOf('password');
-    const siteIdx = cols.indexOf('site');
+    const urlIdx = cols.indexOf('url');
 
     const newItems = rows.map(line => {
       const vals = line.split(',').map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
       
       const type = (typeIdx > -1 ? vals[typeIdx] : 'login') || 'login';
       let name = (nameIdx > -1 ? vals[nameIdx] : '') || '';
-      if (!name && siteIdx > -1) name = vals[siteIdx];
+      
+      const importedUrl = urlIdx > -1 ? vals[urlIdx] : '';
+      let siteForAutofill = name;
+      
+      // Tenta obter o domínio da URL para o campo 'site' (necessário para o autofill)
+      try {
+        if (importedUrl) {
+            siteForAutofill = new URL(importedUrl).hostname.replace(/^www\./, '');
+        }
+      } catch (e) { /* Se URL inválida, usa o nome */ }
 
       return {
         id: crypto.randomUUID(),
@@ -484,7 +546,8 @@ export function createVaultModule(options) {
         name,
         username: userIdx > -1 ? vals[userIdx] : '',
         password: passIdx > -1 ? vals[passIdx] : '',
-        site: name
+        url: importedUrl,
+        site: siteForAutofill // Campo 'site' corrigido para compatibilidade com o service-worker
       };
     }).filter(i => i.name);
 

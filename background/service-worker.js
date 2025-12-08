@@ -69,53 +69,53 @@ async function getVault() {
 async function handleGetLogin(url) {
   try {
     const vault = await getVault();
-    // Se vault for vazio ou nulo, pode ser bloqueio ou cofre vazio.
     if (!Array.isArray(vault) || vault.length === 0) return [];
 
     if (url === 'CARD_REQUEST') {
        return vault.filter(i => i.type === 'card');
     }
     
-    // Normaliza o hostname da aba atual
+    // Normalização robusta do hostname atual
     let currentHostname;
     try {
-      currentHostname = new URL(url).hostname.toLowerCase();
-    } catch (e) {
-      return [];
+      currentHostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    } catch {
+      currentHostname = url.toLowerCase();
+      // Se a URL for inválida, não pode fazer Autofill baseado em Hostname.
+      return []; 
     }
     
-    // Filtra procurando match no URL ou no SITE (legado)
     const matches = vault.filter(item => {
-      // Ignora itens que não sejam login
+      // Ignora itens que não são login/sem tipo definido
       if (item.type && item.type !== 'login') return false;
 
-      // 1. Tenta pegar o domínio do campo URL (Onde está o link real agora)
-      let itemDomain = '';
+      // Prioridade 1: Verifica o campo URL (o mais confiável)
       if (item.url) {
         try {
-          itemDomain = new URL(item.url).hostname.toLowerCase();
-        } catch (e) {
-          // Se item.url não for uma URL válida (ex: "localhost"), usa como string pura
-          itemDomain = item.url.toLowerCase();
-        }
-      } 
-      // 2. Fallback para item.site (Compatibilidade com itens antigos ou importados)
-      else if (item.site) {
-        itemDomain = item.site.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+          const itemHost = new URL(item.url).hostname.toLowerCase().replace(/^www\./, '');
+          // Verifica correspondência exata ou subdomínio/domínio
+          if (currentHostname === itemHost || currentHostname.endsWith('.' + itemHost) || itemHost.endsWith('.' + currentHostname)) {
+            return true;
+          }
+        } catch (e) { /* URL inválida salva no item, ignora e tenta fallback */ }
       }
 
-      if (!itemDomain) return false;
+      // Prioridade 2: Fallback para o campo 'site' (Antigo/Migrado)
+      if (item.site) {
+        // Assume que 'site' pode ser o nome ('Meu Google') ou o domínio ('google.com')
+        const cleanSite = item.site.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+        // Se 'site' for um domínio válido, verifica correspondência
+        if (cleanSite.includes('.') && (currentHostname.includes(cleanSite) || cleanSite.includes(currentHostname))) {
+            return true;
+        }
+      }
 
-      // Verifica correspondência (incluindo subdomínios)
-      // Ex: itemDomain "google.com" bate com current "accounts.google.com"
-      return currentHostname.includes(itemDomain) || itemDomain.includes(currentHostname);
+      return false;
     });
     
-    return matches;
-
-  } catch (error) {
-    // Log para debug: ajuda a saber se falhou por criptografia (LOCKED)
-    console.warn('Pass Manager Background: Falha ao buscar login.', error.message);
+    return matches; // Retorna array vazio ou com itens
+  } catch (error) { 
+    console.error('Erro no handleGetLogin:', error);
     return []; 
   }
 }
